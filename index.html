@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Catch the Coin</title>
+  <style>
+    body { margin: 0; background: #222; }
+    canvas { display: block; margin: auto; background: #333; border-radius: 16px; }
+    #telegram-score { color: white; text-align: center; margin-top: 10px; }
+  </style>
+</head>
+<body>
+<canvas id="game" width="320" height="480"></canvas>
+<div id="telegram-score"></div>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+let basket = { x: 140, y: 430, w: 40, h: 20 };
+let coin = { x: Math.random()*280, y: 0, r: 12, vy: 4 };
+let score = 0;
+let gameOver = false;
+
+function drawBasket() {
+    ctx.fillStyle = "#FFD700";
+    ctx.fillRect(basket.x, basket.y, basket.w, basket.h);
+}
+function drawCoin() {
+    ctx.beginPath();
+    ctx.arc(coin.x, coin.y, coin.r, 0, Math.PI*2);
+    ctx.fillStyle = "#fff";
+    ctx.fill();
+}
+function drawScore() {
+    ctx.font = "20px Arial";
+    ctx.fillStyle = "#fff";
+    ctx.fillText(`Score: ${score}`, 10, 30);
+}
+
+function update() {
+    if (gameOver) return;
+    coin.y += coin.vy;
+    // If coin hits basket
+    if (
+        coin.y + coin.r > basket.y &&
+        coin.x > basket.x &&
+        coin.x < basket.x + basket.w
+    ) {
+        score++;
+        coin = { x: Math.random()*280, y: 0, r: 12, vy: 4 + score*0.2 };
+    }
+    // If missed
+    if (coin.y > canvas.height) {
+        gameOver = true;
+        document.getElementById('telegram-score').innerText = `Game Over! Your score: ${score}`;
+        if (window.TelegramGameProxy) {
+            window.TelegramGameProxy.postScore(score);
+        }
+    }
+}
+
+function draw() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    drawBasket();
+    drawCoin();
+    drawScore();
+}
+
+function gameLoop() {
+    update();
+    draw();
+    if (!gameOver) requestAnimationFrame(gameLoop);
+}
+gameLoop();
+
+document.addEventListener('mousemove', function(e) {
+    // For Telegram browser: use touch events
+    if (e.touches) {
+        let x = e.touches[0].clientX - canvas.getBoundingClientRect().left;
+        basket.x = Math.max(0, Math.min(x - basket.w/2, canvas.width - basket.w));
+    }
+});
+
+canvas.addEventListener('mousemove', function(e) {
+    let x = e.offsetX;
+    basket.x = Math.max(0, Math.min(x - basket.w/2, canvas.width - basket.w));
+});
+canvas.addEventListener('touchmove', function(e) {
+    let x = e.touches[0].clientX - canvas.getBoundingClientRect().left;
+    basket.x = Math.max(0, Math.min(x - basket.w/2, canvas.width - basket.w));
+    e.preventDefault();
+}, { passive: false });
+
+</script>
+</body>
+</html>
